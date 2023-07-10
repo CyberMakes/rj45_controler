@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 
 #define BUFFER_SIZE 1024
+#define IP_ADDR "192.168.0.18"
+#define PORT 50000
 
 int sendRelayCommand(int sockfd, int relayNum, int state)
 {
@@ -90,7 +92,7 @@ int main(int argc, char **argv)
     // 参数检查
     if (argc != 3)
     {
-        printf("Usage: %s [1-16 or all] \"on\" or \"off\"\n", argv[0]);
+        printf("Usage: %s [1-16/all] on/off\n", argv[0]);
         return -1;
     }
 
@@ -108,8 +110,8 @@ int main(int argc, char **argv)
 
     // 设置服务器地址和端口
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(50000);
-    serverAddr.sin_addr.s_addr = inet_addr("192.168.0.18");
+    serverAddr.sin_port = htons(PORT);
+    serverAddr.sin_addr.s_addr = inet_addr(IP_ADDR);
 
     // 连接到服务器
     if (connect(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
