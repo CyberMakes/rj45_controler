@@ -20,6 +20,8 @@ int main(int argc, char *argv[])
 
     // device_num转为16进制
     device_num = atoi(argv[1]) & 0xff;
+
+    // 创建Modbus RTU上下文
     ctx = modbus_new_rtu("/dev/ttyS9", 9600, 'N', 8, 1);
     if (ctx == NULL)
     {
@@ -27,6 +29,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // 设置从机地址
     if (modbus_set_slave(ctx, device_num) == -1)
     {
         fprintf(stderr, "Failed to set Modbus slave address\n");
@@ -34,6 +37,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // 连接到从机
     if (modbus_connect(ctx) == -1)
     {
         fprintf(stderr, "Modbus connection failed: %s\n", modbus_strerror(errno));
@@ -60,6 +64,7 @@ int main(int argc, char *argv[])
         start_address = 0x0000; // 雨雪传感器寄存器起始地址
     }
 
+    // 读取寄存器
     rc = modbus_read_registers(ctx, start_address, 1, tab_reg);
     if (rc == -1)
     {
@@ -105,6 +110,7 @@ print_value:
         break;
     }
 
+    // 断开连接
     modbus_close(ctx);
     modbus_free(ctx);
 
