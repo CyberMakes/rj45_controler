@@ -11,6 +11,7 @@
 #define IP_ADDR "192.168.0.18"
 #define PORT 50000
 
+// 发送继电器控制命令
 int sendRelayCommand(int sockfd, int relayNum, int state)
 {
     unsigned char request[] = {
@@ -23,16 +24,16 @@ int sendRelayCommand(int sockfd, int relayNum, int state)
 
     if (relayNum < 1 || relayNum > 16)
     {
-        if (relayNum == 0) // 全部继电器
+        if (relayNum == 0) // 0表示全部继电器
         {
-            if (state)
+            if (state)// 全部打开
             {
                 request[4] = 0xFF;
                 request[5] = 0xFF;
                 request[6] = 0xFF;
                 request[7] = 0xFF;
             }
-            else
+            else// 全部关闭
             {
                 request[4] = 0x00;
                 request[5] = 0x00;
@@ -63,7 +64,7 @@ int sendRelayCommand(int sockfd, int relayNum, int state)
 
     request[4] = request[6] = controlBit >> 8;
     request[5] = request[7] = controlBit & 0xFF;
-    if (!state)
+    if (!state)//如果是关闭指令
     {
         request[4] = request[5] = 0x00;
     }
@@ -105,19 +106,20 @@ int sendRelayCommand(int sockfd, int relayNum, int state)
     return 0;
 }
 
+// 读取继电器状态
 int readRelayState(int sockfd)
 {
-    const unsigned char request[] = {0xCC, 0xDD, 0xB0, 0x01, 0x00, 0x00, 0x0D, 0xBE, 0x7C};
-    ssize_t numBytesSent = send(sockfd, request, sizeof(request), 0);
+    const unsigned char request[] = {0xCC, 0xDD, 0xB0, 0x01, 0x00, 0x00, 0x0D, 0xBE, 0x7C};// 读取继电器状态命令
+    ssize_t numBytesSent = send(sockfd, request, sizeof(request), 0);// 发送命令
     if (numBytesSent < 0)
     {
         perror("Send failed");
         return -1;
     }
 
-    // 接收 "v1.0" 响应
+    // 接收 "v1.0" 响应 控制器接收到命令后会返回 "v1.0"  76 31 2E 30
     unsigned char versionResponse[4];
-    ssize_t numVersionBytesRecv = recv(sockfd, versionResponse, 4, 0);
+    ssize_t numVersionBytesRecv = recv(sockfd, versionResponse, 4, 0);// 接收 "v1.0" 响应
     if (numVersionBytesRecv < 0)
     {
         perror("Read version response failed");
@@ -129,9 +131,9 @@ int readRelayState(int sockfd)
     {
         printf("read command sent successfully\n");
     }
-    // 接收状态值
+    // 接收状态值 接收完 "v1.0" 响应后，接收继电器状态值
     unsigned char recvBuffer[BUFFER_SIZE];
-    ssize_t numBytesRecv = recv(sockfd, recvBuffer, BUFFER_SIZE, 0);
+    ssize_t numBytesRecv = recv(sockfd, recvBuffer, BUFFER_SIZE, 0);// 接收状态值
     if (numBytesRecv < 0)
     {
         perror("Read states failed");
@@ -159,6 +161,7 @@ int readRelayState(int sockfd)
     return 0;
 }
 
+// 建立ModbusTCP连接
 int establishConnection(int *sockfd)
 {
     struct sockaddr_in serverAddr;
@@ -187,6 +190,7 @@ int establishConnection(int *sockfd)
     return 0;
 }
 
+// 关闭连接
 void closeConnection(int sockfd)
 {
     // 关闭套接字
