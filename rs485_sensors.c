@@ -2,6 +2,7 @@
 #include <modbus.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 int device_num;
 char *device_value_name;
@@ -10,21 +11,21 @@ modbus_t *connect_modbus(int device_num)
 {
     int rc;
     modbus_t *ctx;
-
     // 创建Modbus RTU上下文
     ctx = modbus_new_rtu("/dev/ttyS9", 9600, 'N', 8, 1);
     if (ctx == NULL)
     {
         fprintf(stderr, "Failed to create the Modbus context\n");
-        exit(1);// 退出程序
+        exit(1); // 退出程序
     }
+    // modbus_set_debug(ctx, TRUE);
 
     // 设置从机地址
     if (modbus_set_slave(ctx, device_num) == -1)
     {
         fprintf(stderr, "Failed to set Modbus slave address\n");
         modbus_free(ctx);
-        exit(1);// 退出程序
+        exit(1); // 退出程序
     }
 
     // 连接到从机
@@ -32,7 +33,7 @@ modbus_t *connect_modbus(int device_num)
     {
         fprintf(stderr, "Modbus connection failed: %s\n", modbus_strerror(errno));
         modbus_free(ctx);
-        exit(1);// 退出程序
+        exit(1); // 退出程序
     }
     return ctx;
 }
@@ -157,7 +158,9 @@ int main(int argc, char *argv[])
         register_num = 2;
         break;
     case 0x05:
+        start_address = 0x0000; // 空气质量传感器寄存器起始地址
         register_num = 7;
+        break;
     case 0x06:
         start_address = 0x0006; // 红外感应传感器寄存器起始地址
         break;

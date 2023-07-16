@@ -1,60 +1,45 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <modbus.h>
+#include <errno.h>
 
-#define BUFFER_SIZE 1024
-#define IP_ADDR "192.168.0.18"
-#define PORT 50000
+int main() {
+    modbus_t *ctx;
+    uint16_t tab_reg[100];
+    int rc;
 
-int main()
-{
-    // 创建TCP套接字
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
-        perror("Socket creation failed");
+    ctx = modbus_new_rtu("/dev/ttyS9", 9600, 'N', 8, 1);
+    if (ctx == NULL) {
+        fprintf(stderr, "Failed to create the Modbus context\n");
         return -1;
     }
 
-    // 设置服务器地址和端口
-    struct sockaddr_in serverAddr;
-    memset(&serverAddr, 0, sizeof(serverAddr));
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr(IP_ADDR);
-    serverAddr.sin_port = htons(PORT);
-    // 连接到服务器
-    if (connect(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
-    {
-        perror("Connection failed");
-        close(sockfd);
+    if (modbus_set_slave(ctx, 0x05) == -1) {
+        fprintf(stderr, "Failed to set Modbus slave address\n");
+        modbus_free(ctx);
         return -1;
     }
-    while (1)
-    {
-        unsigned char recvBuffer[BUFFER_SIZE];
-        ssize_t numBytesRecv = recv(sockfd, recvBuffer, BUFFER_SIZE, 0);
-        if (numBytesRecv < 0)
-        {
-            perror("Read states failed");
-            close(sockfd);
-            return -1;
-        }
-        // 打印接收到的数据
-        printf("Response received: ");
-        for (int i = 0; i < numBytesRecv; i++)
-        {
-            printf("%02X ", recvBuffer[i]);
-        }
-        printf("\n");
+    modbus_set_debug(ctx, TRUE);
+    if (modbus_connect(ctx) == -1) {
+        fprintf(stderr, "Modbus connection failed: %s\n", modbus_strerror(errno));
+        modbus_free(ctx);
+        return -1;
     }
 
-    // 关闭服务器套接字
-    close(sockfd);
+    rc = modbus_read_registers(ctx, 0x00, 7, tab_reg);
+    if (rc == -1) {
+        fprintf(stderr, "Modbus read failed: %s\n", modbus_strerror(errno));
+        modbus_free(ctx);
+        return -1;
+    }
+
+    for (int i = 0; i < 7; i++)
+    {
+        printf("%d\n", tab_reg[i]);
+    }
+    
+
+    modbus_close(ctx);
+    modbus_free(ctx);
 
     return 0;
 }
