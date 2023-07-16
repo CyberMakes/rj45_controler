@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
             case 7:
                 start_address = 0x1A; // 频率
                 read_register(ctx, start_address, 1, tab_reg);
-                printf("频率: %.1f Hz\n", (float)tab_reg[0] / 10.0);
+                printf("频率: %.1f Hz\n", (float)tab_reg[0] / 100.0);
                 break;
             case 8:
                 start_address = 0x1D; // 有功电能
