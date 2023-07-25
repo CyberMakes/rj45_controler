@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include "tcpController.h"
 
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
@@ -109,7 +110,8 @@ int main() {
                     // Echo back the message to the client
                     buffer[valread] = '\0';
                     // send(sd, buffer, strlen(buffer), 0);
-                    pritnf("Received: %s\n", buffer);
+                    printf("Received: %s\n", buffer);
+                    jsonParse(buffer);
                 }
             }
         }
