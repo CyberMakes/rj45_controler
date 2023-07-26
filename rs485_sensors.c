@@ -9,7 +9,6 @@ char *device_value_name;
 
 modbus_t *connect_modbus(int device_num)
 {
-    int rc;
     modbus_t *ctx;
     // 创建Modbus RTU上下文
     ctx = modbus_new_rtu("/dev/ttyS9", 9600, 'N', 8, 1);

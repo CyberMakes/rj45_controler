@@ -12,7 +12,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "cJSON.h"
-#include "tcpController.h"
 
 
 #define BUFFER_SIZE 1024
@@ -171,7 +170,7 @@ static int readRelayState(int sockfd)
 }
 
 // 建立TCP连接
-static int establishConnection(int *sockfd)
+static int establishConnection(int *sockfd, const char *ip)
 {
     struct sockaddr_in serverAddr;
 
@@ -186,7 +185,7 @@ static int establishConnection(int *sockfd)
     // 设置服务器地址和端口
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(CONTROPORT);
-    serverAddr.sin_addr.s_addr = inet_addr(CONTROIP1);
+    serverAddr.sin_addr.s_addr = inet_addr(ip);
 
     // 连接到服务器
     if (connect(*sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
@@ -231,12 +230,13 @@ static void commandControl(cJSON *data)
         if (strcmp(type->valuestring, "light") == 0)
         {
             cJSON *tcpControllerNum = cJSON_GetObjectItem(value, "tcpControllerNum");
+            cJSON *tcpControllerIP = cJSON_GetObjectItem(value, "tcpControllerIP");
             cJSON *relayNum = cJSON_GetObjectItem(value, "relayNum");
             cJSON *state = cJSON_GetObjectItem(value, "state");
             if (tcpControllerNum != NULL && relayNum != NULL && state != NULL)
             {
                 int sockfd;
-                if (establishConnection(&sockfd) == 0)
+                if (establishConnection(&sockfd, tcpControllerIP->valuestring) == 0)
                 {
                     // 发送继电器开关指令
                     sendRelayCommand(sockfd, relayNum->valueint, state->valueint);
