@@ -33,6 +33,9 @@ rs485_sensor rs485_sensor_list[DEVICE_NUM] = {
     {"浸水传感器", 0, 0x0000, 1},     // 浸水传感器
 };
 
+/// @brief 连接Modbus
+/// @param device_num
+/// @return
 modbus_t *connect_modbus(int device_num)
 {
     modbus_t *ctx;
@@ -63,6 +66,12 @@ modbus_t *connect_modbus(int device_num)
     return ctx;
 }
 
+/// @brief 读取寄存器
+/// @param ctx
+/// @param start_address
+/// @param register_num
+/// @param tab_reg
+/// @return
 int read_register(modbus_t *ctx, int start_address, int register_num, uint16_t *tab_reg)
 {
     int rc = modbus_read_registers(ctx, start_address, register_num, tab_reg);
@@ -76,6 +85,10 @@ int read_register(modbus_t *ctx, int start_address, int register_num, uint16_t *
     return 0;
 }
 
+/// @brief 将每个传感器数据格式化到sensor_data中
+/// @param device_num
+/// @param tab_reg
+/// @param sensor_data
 void print_value(int device_num, uint16_t *tab_reg, char *sensor_data)
 {
     char temp_str[1024]; // 临时缓冲区用于存储每次sprintf的结果
@@ -236,6 +249,9 @@ void print_value(int device_num, uint16_t *tab_reg, char *sensor_data)
     }
 }
 
+/// @brief 读取传感器函数
+/// @param sensor_data
+/// @return
 int read_sensor(char *sensor_data)
 {
     uint16_t tab_reg[100] = {0};
@@ -246,11 +262,11 @@ int read_sensor(char *sensor_data)
         rs485_sensor_list[i].ctx = connect_modbus(i + 1);
         if (rs485_sensor_list[i].ctx != NULL)
         {
-            // printf("%s连接成功\n", rs485_sensor_list[i].device_name);
+            DEBUG_PRINT("%s连接成功\n", rs485_sensor_list[i].device_name);
         }
         else
         {
-            printf("%s连接失败\n", rs485_sensor_list[i].device_name);
+            DEBUG_PRINT("%s连接失败\n", rs485_sensor_list[i].device_name);
         }
         // 读取寄存器
         read_register(rs485_sensor_list[i].ctx, rs485_sensor_list[i].start_address, rs485_sensor_list[i].register_num, tab_reg);
@@ -263,26 +279,31 @@ int read_sensor(char *sensor_data)
             modbus_free(rs485_sensor_list[i].ctx);
         }
     }
-    printf("111sensor_data: %s\n", sensor_data);
+    // DEBUG_PRINT("111sensor_data: %s\n", sensor_data);
 
     return 0;
 }
 
+/// @brief 传感器线程
+/// @param arg
+/// @return
 void *sensor_thread(void *arg)
 {
+    printf("1\r\n");
     while (1)
     {
         // Read sensor data and send it to connected devices (excluding those in tcpControllerSockList)
         char *sensor_data = 0;
         sensor_data = (char *)malloc(MSG_BUFFER_SIZE * sizeof(char));
         memset(sensor_data, 0, 4096);
+        int *client_sockets = (int *)arg;
+
         read_sensor(sensor_data);
         DEBUG_PRINT("sensor_data:%s\r\n", sensor_data);
 
         for (int i = 0; i < MAX_CLIENTS; i++)
         {
-            int *client_sockets = (int *)arg;
-            // printf("client_sockets:%d\r\n", client_sockets[i]);
+            DEBUG_PRINT("client_sockets:%d\r\n", client_sockets[i]);
             if (client_sockets[i] != 0)
             {
                 send(client_sockets[i], sensor_data, strlen(sensor_data), 0);
@@ -301,18 +322,18 @@ void *sensor_thread(void *arg)
 
 // QList(
 //     QVariant(QVariantMap, QMap(("name", QVariant(QString, "噪声传感器"))("value", QVariant(QString, "42.5dB")))),
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "风速值"))("value", QVariant(QString, "0.0m/s")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "光照值"))("value", QVariant(QString, "28Lux")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "雨雪值"))("value", QVariant(QString, "正常")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "红外感应值"))("value", QVariant(QString, "无人")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "电压"))("value", QVariant(QString, "211.5V")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "电流"))("value", QVariant(QString, "4.5A")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "总有功功率"))("value", QVariant(QString, "0.0W")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "总无功功率"))("value", QVariant(QString, "24.7W")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "总视在功率"))("value", QVariant(QString, "13.2W")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "总功率因数"))("value", QVariant(QString, "10.0")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "频率"))("value", QVariant(QString, "50.0Hz")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "有功电能"))("value", QVariant(QString, "0.4kWh")))), 
-//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "反向总有功电能"))("value", QVariant(QString, "0.4kWh")))), 
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "风速值"))("value", QVariant(QString, "0.0m/s")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "光照值"))("value", QVariant(QString, "28Lux")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "雨雪值"))("value", QVariant(QString, "正常")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "红外感应值"))("value", QVariant(QString, "无人")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "电压"))("value", QVariant(QString, "211.5V")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "电流"))("value", QVariant(QString, "4.5A")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "总有功功率"))("value", QVariant(QString, "0.0W")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "总无功功率"))("value", QVariant(QString, "24.7W")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "总视在功率"))("value", QVariant(QString, "13.2W")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "总功率因数"))("value", QVariant(QString, "10.0")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "频率"))("value", QVariant(QString, "50.0Hz")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "有功电能"))("value", QVariant(QString, "0.4kWh")))),
+//     QVariant(QVariantMap, QMap(("name", QVariant(QString, "反向总有功电能"))("value", QVariant(QString, "0.4kWh")))),
 //     QVariant(QVariantMap, QMap(("name", QVariant(QString, "甲烷值"))("value", QVariant(QString, "0LEL"))))
 //     )

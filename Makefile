@@ -16,7 +16,7 @@ SOURCES = ./main.c\
           ./tcp/tcpServer.c\
           ./rs485/rs485Sensors.c
 
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra -g
 CFLAGS += $(INCLUDE)
 ifdef DEBUG
 CFLAGS += -DDEBUG
@@ -48,5 +48,8 @@ $(BUILD_DIR)/tcp:
 $(BUILD_DIR)/rs485:
 	mkdir -p $(BUILD_DIR)/rs485
 
+debug: $(TARGET)
+	gdb $(TARGET)
+	
 clean:
 	rm -rf $(BUILD_DIR)
