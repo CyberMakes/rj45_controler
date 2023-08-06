@@ -3,6 +3,14 @@
         "tcpcontroller.h": "c",
         "type_traits": "c",
         "unistd.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "main.h": "c",
+        "tcpserver.h": "c",
+        "pthread.h": "c",
+        "errno.h": "c",
+        "time.h": "c",
+        "rs485sensors.h": "c",
+        "select.h": "c",
+        "stdlib.h": "c"
     }
 }

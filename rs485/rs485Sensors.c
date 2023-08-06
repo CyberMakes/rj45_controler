@@ -5,9 +5,13 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <string.h>
+#include "tcpServer.h"
 #include "main.h"
 
 #define DEVICE_NUM 9
+#define MSG_BUFFER_SIZE 1024
+
+char *sensor_data;
 
 typedef struct
 {
@@ -24,7 +28,7 @@ rs485_sensor rs485_sensor_list[DEVICE_NUM] = {
     {"雨雪传感器", 0, 0x0000, 1},     // 雨雪传感器
     {"空气质量传感器", 0, 0x0000, 7}, // 空气质量传感器
     {"红外传感器", 0, 0x0006, 1},     // 红外传感器
-    {"电表", 0, 0x0007, 1},           // 电表
+    {"电表", 0, 0x0000, 1},           // 电表
     {"甲烷传感器", 0, 0x0008, 1},     // 甲烷传感器
     {"浸水传感器", 0, 0x0000, 1},     // 浸水传感器
 };
@@ -242,7 +246,7 @@ int read_sensor(char *sensor_data)
         rs485_sensor_list[i].ctx = connect_modbus(i + 1);
         if (rs485_sensor_list[i].ctx != NULL)
         {
-            printf("%s连接成功\n", rs485_sensor_list[i].device_name);
+            // printf("%s连接成功\n", rs485_sensor_list[i].device_name);
         }
         else
         {
@@ -259,9 +263,40 @@ int read_sensor(char *sensor_data)
             modbus_free(rs485_sensor_list[i].ctx);
         }
     }
-    // printf("111sensor_data: %s\n", sensor_data);
+    printf("111sensor_data: %s\n", sensor_data);
 
     return 0;
+}
+
+void *sensor_thread(void *arg)
+{
+    while (1)
+    {
+        // Read sensor data and send it to connected devices (excluding those in tcpControllerSockList)
+        char *sensor_data = 0;
+        sensor_data = (char *)malloc(MSG_BUFFER_SIZE * sizeof(char));
+        memset(sensor_data, 0, 4096);
+        read_sensor(sensor_data);
+        DEBUG_PRINT("sensor_data:%s\r\n", sensor_data);
+
+        for (int i = 0; i < MAX_CLIENTS; i++)
+        {
+            int *client_sockets = (int *)arg;
+            // printf("client_sockets:%d\r\n", client_sockets[i]);
+            if (client_sockets[i] != 0)
+            {
+                send(client_sockets[i], sensor_data, strlen(sensor_data), 0);
+            }
+        }
+        // Sleep for 5 seconds
+        sleep(5);
+        memset(sensor_data, 0, 4096);
+    }
+    if (sensor_data != NULL)
+    {
+        free(sensor_data);
+    }
+    return NULL;
 }
 
 // QList(
