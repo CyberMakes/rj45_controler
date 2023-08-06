@@ -216,19 +216,18 @@ static void commandControl(cJSON *data)
                     // 通过传递 NULL 来获取下一个标记
                     token = strtok(NULL, "-");
                     relayNum2 = atoi(token);
-                    // printf("relayNum1:%d\r\n,relayNum2:%d\r\n", relayNum1, relayNum2);
                     // 根据state发送继电器开关指令
                     if (state->valueint == 0)
                     {
-                        sendRelayCommand(tcpControllerSockList[tcpControllerNum->valueint], relayNum2, !state->valueint);
-                        usleep(100000);// 100ms
                         sendRelayCommand(tcpControllerSockList[tcpControllerNum->valueint], relayNum1, state->valueint);
+                        usleep(300000);// 300ms
+                        sendRelayCommand(tcpControllerSockList[tcpControllerNum->valueint], relayNum2, !state->valueint);
                     }
                     else
                     {
-                        sendRelayCommand(tcpControllerSockList[tcpControllerNum->valueint], relayNum1, state->valueint);
-                        usleep(100000);// 100ms
                         sendRelayCommand(tcpControllerSockList[tcpControllerNum->valueint], relayNum2, !state->valueint);
+                        usleep(300000);// 300ms
+                        sendRelayCommand(tcpControllerSockList[tcpControllerNum->valueint], relayNum1, state->valueint);
                     }
                 }
             }

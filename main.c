@@ -11,7 +11,6 @@ int main()
         perror("Thread creation failed");
         exit(EXIT_FAILURE);
     }
-    pthread_join(serverThread, NULL);
 
     // 创建传感器线程
     pthread_t sensorThread;
@@ -21,5 +20,6 @@ int main()
         exit(EXIT_FAILURE);
     }
     pthread_join(sensorThread, NULL);
+    pthread_join(serverThread, NULL);
     return 0;
 }

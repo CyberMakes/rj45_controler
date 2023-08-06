@@ -289,13 +289,16 @@ int read_sensor(char *sensor_data)
 /// @return
 void *sensor_thread(void *arg)
 {
-    printf("1\r\n");
+    char *sensor_data = (char *)malloc(MSG_BUFFER_SIZE * sizeof(char));
+    if (sensor_data == NULL)
+    {
+        perror("Memory allocation failed");
+        exit(EXIT_FAILURE);
+    }
+
     while (1)
     {
-        // Read sensor data and send it to connected devices (excluding those in tcpControllerSockList)
-        char *sensor_data = 0;
-        sensor_data = (char *)malloc(MSG_BUFFER_SIZE * sizeof(char));
-        memset(sensor_data, 0, 4096);
+        memset(sensor_data, 0, MSG_BUFFER_SIZE);
         int *client_sockets = (int *)arg;
 
         read_sensor(sensor_data);
@@ -309,14 +312,12 @@ void *sensor_thread(void *arg)
                 send(client_sockets[i], sensor_data, strlen(sensor_data), 0);
             }
         }
+
         // Sleep for 5 seconds
         sleep(5);
-        memset(sensor_data, 0, 4096);
     }
-    if (sensor_data != NULL)
-    {
-        free(sensor_data);
-    }
+
+    free(sensor_data);
     return NULL;
 }
 
