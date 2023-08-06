@@ -6,17 +6,21 @@ BUILD_DIR = build
 SUBDIRS = $(BUILD_DIR) $(BUILD_DIR)/tcpController
 
 INCLUDE = -I/usr/local/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/include/cjson \
-          -I/usr/local/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/include/modbus \
-          -I./tcpController
+          -I/usr/local/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/include/modbus
 
-SOURCES = ./tcpServerSelect.c \
-          ./tcpController/tcpController.c
+# rs485_sensors.c\
+
+SOURCES = ./main.c\
+./tcpController.c\
+./rs485Sensors.c\
 
 CFLAGS = -Wall -Wextra
 CFLAGS += $(INCLUDE)
 
 LDFLAGS = -L/usr/local/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/lib
 LDFLAGS += -lcjson   # Add this line to link the libcjson library
+LDFLAGS += -lmodbus
+LDFLAGS += -pthread
 
 # Update the OBJECTS variable to put .o files in the build directory
 OBJECTS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(SOURCES))

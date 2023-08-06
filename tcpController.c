@@ -13,11 +13,9 @@
 #include <arpa/inet.h>
 #include "cJSON.h"
 
-
 #define BUFFER_SIZE 1024
-#define CONTROIP1 "192.168.10.20"
-#define CONTROIP2 "192.168.10.21"
-#define CONTROPORT 50000
+
+extern int tcpControllerSockList[10];
 
 // 发送继电器控制命令
 static int sendRelayCommand(int sockfd, int relayNum, int state)
@@ -34,14 +32,14 @@ static int sendRelayCommand(int sockfd, int relayNum, int state)
     {
         if (relayNum == 0) // 0表示全部继电器
         {
-            if (state)// 全部打开
+            if (state) // 全部打开
             {
                 request[4] = 0xFF;
                 request[5] = 0xFF;
                 request[6] = 0xFF;
                 request[7] = 0xFF;
             }
-            else// 全部关闭
+            else // 全部关闭
             {
                 request[4] = 0x00;
                 request[5] = 0x00;
@@ -72,7 +70,7 @@ static int sendRelayCommand(int sockfd, int relayNum, int state)
 
     request[4] = request[6] = controlBit >> 8;
     request[5] = request[7] = controlBit & 0xFF;
-    if (!state)//如果是关闭指令
+    if (!state) // 如果是关闭指令
     {
         request[4] = request[5] = 0x00;
     }
@@ -106,10 +104,11 @@ static int sendRelayCommand(int sockfd, int relayNum, int state)
     response[numBytesRecv * 2] = '\0';
 
     // 判断是否等于 "v1.0"  76 31 2E 30
-    if (strcmp(response, "76312E30") == 0)
-    {
-        printf("Relay %d %s command sent successfully\n", relayNum, state ? "ON" : "OFF");
-    }
+    // if (strcmp(response, "76312E30") == 0)
+    // {
+    //     printf("Relay %d %s command sent successfully\n", relayNum, state ? "ON" : "OFF");
+    //     return 0;
+    // }
 
     return 0;
 }
@@ -117,8 +116,8 @@ static int sendRelayCommand(int sockfd, int relayNum, int state)
 // 读取继电器状态
 static int readRelayState(int sockfd)
 {
-    const unsigned char request[] = {0xCC, 0xDD, 0xB0, 0x01, 0x00, 0x00, 0x0D, 0xBE, 0x7C};// 读取继电器状态固定命令
-    ssize_t numBytesSent = send(sockfd, request, sizeof(request), 0);// 发送命令
+    const unsigned char request[] = {0xCC, 0xDD, 0xB0, 0x01, 0x00, 0x00, 0x0D, 0xBE, 0x7C}; // 读取继电器状态固定命令
+    ssize_t numBytesSent = send(sockfd, request, sizeof(request), 0);                       // 发送命令
     if (numBytesSent < 0)
     {
         perror("Send failed");
@@ -127,7 +126,7 @@ static int readRelayState(int sockfd)
 
     // 接收 "v1.0" 响应 控制器接收到命令后会返回 "v1.0"  76 31 2E 30
     char versionResponse[4];
-    ssize_t numVersionBytesRecv = recv(sockfd, versionResponse, 4, 0);// 接收 "v1.0" 响应
+    ssize_t numVersionBytesRecv = recv(sockfd, versionResponse, 4, 0); // 接收 "v1.0" 响应
     if (numVersionBytesRecv < 0)
     {
         perror("Read version response failed");
@@ -141,7 +140,7 @@ static int readRelayState(int sockfd)
     }
     // 接收状态值 接收完 "v1.0" 响应后，接收继电器状态值
     unsigned char recvBuffer[BUFFER_SIZE];
-    ssize_t numBytesRecv = recv(sockfd, recvBuffer, BUFFER_SIZE, 0);// 接收状态值
+    ssize_t numBytesRecv = recv(sockfd, recvBuffer, BUFFER_SIZE, 0); // 接收状态值
     if (numBytesRecv < 0)
     {
         perror("Read states failed");
@@ -168,36 +167,6 @@ static int readRelayState(int sockfd)
 
     return 0;
 }
-
-// 建立TCP连接
-static int establishConnection(int *sockfd, const char *ip)
-{
-    struct sockaddr_in serverAddr;
-
-    // 创建TCP套接字
-    *sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (*sockfd < 0)
-    {
-        perror("Socket creation failed");
-        return -1;
-    }
-
-    // 设置服务器地址和端口
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(CONTROPORT);
-    serverAddr.sin_addr.s_addr = inet_addr(ip);
-
-    // 连接到服务器
-    if (connect(*sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
-    {
-        perror("Connection failed");
-        close(*sockfd);
-        return -1;
-    }
-
-    return 0;
-}
-
 // 关闭连接
 static void closeConnection(int sockfd)
 {
@@ -223,24 +192,41 @@ static void closeConnection(int sockfd)
 static void commandControl(cJSON *data)
 {
     cJSON *address = cJSON_GetObjectItem(data, "address");
-    cJSON *type = cJSON_GetObjectItem(data, "type");
+    cJSON *deviceType = cJSON_GetObjectItem(data, "deviceType");
     cJSON *value = cJSON_GetObjectItem(data, "value");
-    if (address != NULL && type != NULL && value != NULL)
+    if (address != NULL && deviceType != NULL && value != NULL)
     {
-        if (strcmp(type->valuestring, "light") == 0)
+        cJSON *tcpControllerNum = cJSON_GetObjectItem(value, "tcpControllerNum");
+        cJSON *tcpControllerIP = cJSON_GetObjectItem(value, "tcpControllerIP");
+        cJSON *relayNum = cJSON_GetObjectItem(value, "relayNum");
+        cJSON *state = cJSON_GetObjectItem(value, "state");
+        if (tcpControllerNum != NULL && relayNum != NULL && state != NULL)
         {
-            cJSON *tcpControllerNum = cJSON_GetObjectItem(value, "tcpControllerNum");
-            cJSON *tcpControllerIP = cJSON_GetObjectItem(value, "tcpControllerIP");
-            cJSON *relayNum = cJSON_GetObjectItem(value, "relayNum");
-            cJSON *state = cJSON_GetObjectItem(value, "state");
-            if (tcpControllerNum != NULL && relayNum != NULL && state != NULL)
+            if (tcpControllerSockList[tcpControllerNum->valueint] != 0)
             {
-                int sockfd;
-                if (establishConnection(&sockfd, tcpControllerIP->valuestring) == 0)
+                if (strlen(relayNum->valuestring) != 1)
                 {
-                    // 发送继电器开关指令
-                    sendRelayCommand(sockfd, relayNum->valueint, state->valueint);
-                    closeConnection(sockfd);
+                    // 提取1-2格式的字符串
+                    char *relayNumStr = relayNum->valuestring;
+                    char *token = 0;
+                    int relayNum1 = 0, relayNum2 = 0;
+                    // 使用 "-" 分隔字符串
+                    token = strtok(relayNumStr, "-");
+                    // 使用 atoi() 将字符串转换为整数
+                    relayNum1 = atoi(token);
+                    // 通过传递 NULL 来获取下一个标记
+                    token = strtok(NULL, "-");
+                    relayNum2 = atoi(token);
+                    // printf("relayNum1:%d\r\n,relayNum2:%d\r\n", relayNum1, relayNum2);
+                    // 根据state发送继电器开关指令
+                    if (sendRelayCommand(tcpControllerSockList[tcpControllerNum->valueint], relayNum1, state->valueint) == 0)
+                    {
+                        sendRelayCommand(tcpControllerSockList[tcpControllerNum->valueint], relayNum2, !state->valueint);
+                    }
+                }
+                else
+                {
+                    sendRelayCommand(tcpControllerSockList[tcpControllerNum->valueint], atoi(relayNum->valuestring), state->valueint);
                 }
             }
         }
@@ -249,6 +235,7 @@ static void commandControl(cJSON *data)
 
 void jsonParse(char *jsonStr)
 {
+    // printf("JSON Parse!\r\n");
     cJSON *json = cJSON_Parse(jsonStr);
     if (json == NULL)
     {

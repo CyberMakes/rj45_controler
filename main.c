@@ -1,14 +1,79 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <errno.h>
-#include <sys/select.h>
-#include "tcpController.h"
+#include "main.h"
 
-#define MAX_CLIENTS 10
-#define BUFFER_SIZE 1024
+int tcpControllerSockList[MAX_CLIENTS];
+char *tcpControllerIPList[MAX_CLIENTS] = {CONTROIP1, CONTROIP2};
+
+// 获取传感器数据并发送的线程
+void *sensor_reading_thread(void *arg)
+{
+    while (1)
+    {
+        // Read sensor data and send it to connected devices (excluding those in tcpControllerSockList)
+        char *sensor_data = 0;
+        sensor_data = (char *)malloc(4096);
+        memset(sensor_data, 0, 4096);
+        read_sensor(sensor_data);
+        // printf("222sensor_data:%s\r\n", sensor_data);
+
+        for (int i = 0; i < MAX_CLIENTS; i++)
+        {
+            int *client_sockets = (int *)arg;
+            printf("client_sockets:%d\r\n", client_sockets[i]);
+            if (client_sockets[i] != 0)
+            {
+                send(client_sockets[i], sensor_data, strlen(sensor_data), 0);
+            }
+        }
+        // Sleep for 5 seconds
+        sleep(5);
+        memset(sensor_data, 0, 4096);
+    }
+    if (sensor_data != NULL)
+    {
+        free(sensor_data);
+    }
+    return NULL;
+}
+
+// 建立TCP连接
+static int establishConnection(int *sockfd, const char *ip)
+{
+    struct sockaddr_in serverAddr;
+
+    // 创建TCP套接字
+    *sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (*sockfd < 0)
+    {
+        perror("Socket creation failed");
+        return -1;
+    }
+
+    // 设置服务器地址和端口
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(CONTROPORT);
+    serverAddr.sin_addr.s_addr = inet_addr(ip);
+
+    // 连接到服务器
+    if (connect(*sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
+    {
+        perror("Connection failed");
+        close(*sockfd);
+        return -1;
+    }
+
+    return 0;
+}
+
+static void tcpControllerSocketCreate(void)
+{
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (establishConnection(&tcpControllerSockList[i], tcpControllerIPList[i]) == 0)
+        {
+            printf("与%s连接成功\r\n", tcpControllerIPList[i]);
+        }
+    }
+}
 
 int main()
 {
@@ -18,6 +83,9 @@ int main()
     int max_fd, activity, i, valread, new_socket, sd;
     char buffer[BUFFER_SIZE];
     socklen_t addrlen;
+
+    // 与网口控制器连接
+    tcpControllerSocketCreate();
 
     // Create socket
     if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
@@ -58,12 +126,19 @@ int main()
 
     printf("Server listening on port 6666...\n");
 
+    // 创建线程
+    pthread_t sensor_thread;
+    if (pthread_create(&sensor_thread, NULL, sensor_reading_thread, (void *)client_sockets) != 0)
+    {
+        perror("Thread creation failed");
+        exit(EXIT_FAILURE);
+    }
+
     while (1)
     {
         // Copy allfds to readfds
         readfds = allfds;
 
-        // Wait for activity on any of the sockets
         activity = select(max_fd + 1, &readfds, NULL, NULL, NULL); // 第三个NULL表示阻塞
 
         if ((activity < 0) && (errno != EINTR))
@@ -127,7 +202,7 @@ int main()
                     // Echo back the message to the client
                     buffer[valread] = '\0';
                     // send(sd, buffer, strlen(buffer), 0);
-                    printf("Received: %s\n", buffer);
+                    // printf("Received: %s\n", buffer);
                     jsonParse(buffer);
                 }
             }
