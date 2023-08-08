@@ -8,7 +8,7 @@
 #include "tcpServer.h"
 #include "main.h"
 
-#define DEVICE_NUM 9
+#define DEVICE_NUM 10
 #define MSG_BUFFER_SIZE 1024
 
 char *sensor_data;
@@ -16,21 +16,23 @@ char *sensor_data;
 typedef struct
 {
     char *device_name;
+    uint8_t device_address;
     modbus_t *ctx;
     uint16_t start_address;
     uint16_t register_num;
 } rs485_sensor;
 
 rs485_sensor rs485_sensor_list[DEVICE_NUM] = {
-    {"噪声传感器", 0, 0x0000, 1},     // 噪声传感器
-    {"风速传感器", 0, 0x0000, 1},     // 风速传感器
-    {"光照传感器", 0, 0x0002, 2},     // 光照传感器
-    {"雨雪传感器", 0, 0x0000, 1},     // 雨雪传感器
-    {"空气质量传感器", 0, 0x0000, 7}, // 空气质量传感器
-    {"红外传感器", 0, 0x0006, 1},     // 红外传感器
-    {"电表", 0, 0x0000, 1},           // 电表
-    {"甲烷传感器", 0, 0x0008, 1},     // 甲烷传感器
-    {"浸水传感器", 0, 0x0000, 1},     // 浸水传感器
+    {"噪声传感器", 0x0001, 0, 0x0000, 1},     // 噪声传感器
+    {"风速传感器", 0x0002, 0, 0x0000, 1},     // 风速传感器
+    {"光照传感器", 0x0003, 0, 0x0002, 2},     // 光照传感器
+    {"雨雪传感器", 0x0004, 0, 0x0000, 1},     // 雨雪传感器
+    {"空气质量传感器", 0x0005, 0, 0x0000, 7}, // 空气质量传感器
+    {"红外传感器", 0x0006, 0, 0x0006, 1},     // 红外传感器
+    {"电表", 0x0007, 0, 0x0000, 1},           // 电表
+    {"甲烷传感器", 0x0008, 0, 0x0008, 1},     // 甲烷传感器
+    {"浸水传感器", 0x0009, 0, 0x0000, 1},     // 浸水传感器
+    {"烟雾报警器", 0x000C, 0, 0x000B, 1},     // 烟雾报警器
 };
 
 /// @brief 连接Modbus
@@ -236,6 +238,13 @@ void print_value(int device_num, uint16_t *tab_reg, char *sensor_data)
     {
         device_value_name = tab_reg[0] ? "浸水" : "正常";
         sprintf(temp_str, "%s\n", device_value_name);
+        strcat(sensor_data, temp_str); // 追加到sensor_data末尾
+    }
+    break;
+    case 0x12:
+    {
+        device_value_name = "烟雾浓度";
+        sprintf(temp_str, "%s: %d %%\n", device_value_name, tab_reg[0]);
         strcat(sensor_data, temp_str); // 追加到sensor_data末尾
     }
     break;
